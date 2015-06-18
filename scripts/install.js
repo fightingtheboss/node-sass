@@ -11,6 +11,8 @@ var fs = require('fs'),
 
 require('../lib/extensions');
 
+console.log("VERSIONS:", process.versions);
+
 /**
  * Download file, if succeeds save, if not delete
  *
@@ -25,6 +27,7 @@ function download(url, dest, cb) {
     cb(['Cannot download "', url, '": ',
       typeof err.message === 'string' ? err.message : err].join(''));
   };
+  
   var successful = function(response) {
     return response.statusCode >= 200 && response.statusCode < 300;
   };
@@ -36,21 +39,28 @@ function download(url, dest, cb) {
         'node-sass-installer/', pkg.version
       ].join('')
     };
+
+    console.log('Headers: ', options);
+    console.log('Starting download...');
+    
     try {
       request(url, options, function(err, response) {
         if (err) {
           reportError(err);
         } else if (!successful(response)) {
-            reportError(['HTTP error', response.statusCode, response.statusMessage].join(' '));
+          reportError(['HTTP error', response.statusCode, response.statusMessage].join(' '));
         } else {
-            cb();
+          console.log('Request complete, calling callback.');
+          cb();
         }
       }).on('response', function(response) {
           if (successful(response)) {
+            console.log('Response received, writing file to disk.');
             response.pipe(fs.createWriteStream(dest));
           }
       });
     } catch (err) {
+      console.log('An error occurred!\n', err);
       cb(err);
     }
   });
@@ -94,19 +104,26 @@ function applyProxy(options, cb) {
 
 function checkAndDownloadBinary() {
   try {
+    console.log('Checking for binary path');
     process.sass.getBinaryPath(true);
     return;
   } catch (e) { }
 
+  console.log('Binary not found. Let\'s create the ' + process.sass.binaryPath + ' vendor directory to store it.' );
+  
   mkdir(path.dirname(process.sass.binaryPath), function(err) {
     if (err) {
       console.error(err);
+      console.log('There was an error creating the directory!\n', err);
       return;
     }
+
+    console.log(process.sass.binaryPath, ' created successfully.' );
 
     download(process.sass.binaryUrl, process.sass.binaryPath, function(err) {
       if (err) {
         console.error(err);
+        console.log('Error in download.\n', err);
         return;
       }
 
